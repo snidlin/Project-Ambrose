@@ -8,6 +8,8 @@
 #include "PlayerEquipment.h"
 #include "PlayerSpellbook.h"
 
+#include <utility>
+
 DeckPrerequisiteResult DeckAdmission::Check(uint64 deckGuid, uint32 spellId, PlayerEquipment const& equipment, ItemTemplateStore const& items,
     PlayerSpellbook const& book, SpellStore const& spells, EquippedDeckFacts& facts)
 {

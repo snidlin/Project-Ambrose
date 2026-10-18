@@ -4,10 +4,38 @@
  */
 
 #include "DeckStateRestorer.h"
+#include "ItemTemplateStore.h"
+#include "PlayerEquipment.h"
 
 #include <gtest/gtest.h>
 
+#include <utility>
 #include <vector>
+
+namespace
+{
+    ItemTemplateRecord DeckTemplate(uint32 id, int32 maxCards)
+    {
+        ItemTemplateRecord item;
+        item.TemplateId = id;
+        item.Deck.emplace();
+        item.Deck->MaxSpells = maxCards;
+        return item;
+    }
+
+    PlayerEquipment WornDecks(std::vector<std::pair<uint64, uint32>> const& ids)
+    {
+        std::vector<CharacterEquippedItem> worn;
+        for (auto const& [guid, templateId] : ids)
+        {
+            CharacterItem item;
+            item.Guid = guid;
+            item.TemplateId = templateId;
+            worn.push_back({ item, "Deck" });
+        }
+        return PlayerEquipment::FromStored(std::move(worn));
+    }
+}
 
 TEST(DeckStateRestorerTest, RestoresOnlyChosenDeckAndKeepsItsOrderAndTombstones)
 {
@@ -75,4 +103,43 @@ TEST(DeckStateRestorerTest, MissingStoredRowsAreAnEmptyDeckWithoutAssumingAnySch
     EXPECT_TRUE(empty->Cards.GetSpells().empty());
     EXPECT_TRUE(empty->Rows.empty());
     EXPECT_EQ(empty->Cards.Add(101, DeckCopyCategory::Generic, { 14, 3, 3 }), DeckEditResult::Added);
+}
+
+TEST(DeckStateRestorerTest, EquippedSelectionUsesTheWornItemGuidAndItsOwnCapacity)
+{
+    auto const templates = ItemTemplateStore::Build({ DeckTemplate(101, 14), DeckTemplate(102, 64) });
+    ASSERT_TRUE(templates);
+    auto const selected = DeckStateRestorer::RestoreEquipped(WornDecks({ { 7002, 102 } }), *templates,
+        { { 7001, 301, 5, 0, 1 }, { 7002, 301, 2, 0, 3 } });
+    ASSERT_TRUE(selected.Valid);
+    ASSERT_TRUE(selected.Deck);
+    EXPECT_EQ(selected.Deck->ItemGuid, 7002u);
+    EXPECT_EQ(selected.Deck->Cards.TotalCards(), 2u);
+    EXPECT_EQ(selected.Deck->RevisionOf(301), 3u);
+}
+
+TEST(DeckStateRestorerTest, NoWornDeckIsValidAndDoesNotExposeBackpackRows)
+{
+    auto const templates = ItemTemplateStore::Build({ DeckTemplate(101, 14) });
+    ASSERT_TRUE(templates);
+    auto const selected = DeckStateRestorer::RestoreEquipped(PlayerEquipment{}, *templates, { { 7001, 301, 1, 0, 1 } });
+    EXPECT_TRUE(selected.Valid);
+    EXPECT_FALSE(selected.Deck);
+}
+
+TEST(DeckStateRestorerTest, MissingTemplateAndTwoWornDecksAreRefused)
+{
+    auto const templates = ItemTemplateStore::Build({ DeckTemplate(101, 14), DeckTemplate(102, 64) });
+    ASSERT_TRUE(templates);
+    EXPECT_FALSE(DeckStateRestorer::RestoreEquipped(WornDecks({ { 7001, 999 } }), *templates, {}).Valid);
+    EXPECT_FALSE(DeckStateRestorer::RestoreEquipped(WornDecks({ { 7001, 101 }, { 7002, 102 } }), *templates, {}).Valid);
+    EXPECT_FALSE(DeckStateRestorer::RestoreEquipped(WornDecks({ { 0, 101 } }), *templates, {}).Valid);
+}
+
+TEST(DeckStateRestorerTest, MalformedSelectedDeckAndInvalidTemplateCapacityAreRefused)
+{
+    auto const templates = ItemTemplateStore::Build({ DeckTemplate(101, 14), DeckTemplate(102, 0) });
+    ASSERT_TRUE(templates);
+    EXPECT_FALSE(DeckStateRestorer::RestoreEquipped(WornDecks({ { 7001, 101 } }), *templates, { { 7001, 301, 15, 0, 1 } }).Valid);
+    EXPECT_FALSE(DeckStateRestorer::RestoreEquipped(WornDecks({ { 7001, 102 } }), *templates, {}).Valid);
 }

@@ -69,7 +69,7 @@ TEST(DeckStateRestorerTest, TooManyStoredCardsAndNonpositiveEntriesFailClosed)
 TEST(DeckStateRestorerTest, MissingStoredRowsAreAnEmptyDeckWithoutAssumingAnySchoolCategory)
 {
     std::vector<CharacterDeckSpell> const rows{ { 7002, 101, 2, 0, 2 } };
-    auto const empty = DeckStateRestorer::Restore(7001, 14, rows);
+    auto empty = DeckStateRestorer::Restore(7001, 14, rows);
     ASSERT_TRUE(empty);
     EXPECT_EQ(empty->ItemGuid, 7001u);
     EXPECT_TRUE(empty->Cards.GetSpells().empty());

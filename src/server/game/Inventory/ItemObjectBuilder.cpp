@@ -16,6 +16,37 @@
 #include <limits>
 #include <span>
 
+bool ItemObjectBuilder::FillDeckSpells(PropertyObject& deckBehavior, PlayerDeck const& deck, std::string& problem)
+{
+    problem.clear();
+    if (!deckBehavior.IsA(DeckBehaviorClass) || !deckBehavior.GetClass().FindProperty(DeckSpellListProperty))
+    {
+        problem = fmt::format("{} is not a deck behavior with {}", deckBehavior.GetClass().Name, DeckSpellListProperty);
+        return false;
+    }
+
+    PropertyValue::List spells;
+    spells.reserve(deck.GetSpells().size());
+    for (DeckSpell const& entry : deck.GetSpells())
+    {
+        PropertyObjectPtr spell = PropertyObject::Create(deckBehavior.GetCatalog(), SpellDataClass);
+        if (!spell)
+        {
+            problem = fmt::format("the type dump has no {}", SpellDataClass);
+            return false;
+        }
+        PropertyFiller(*spell, problem)
+            .Set("m_templateID", entry.SpellId)
+            .Set("m_enchantment", uint32{ 0 })
+            .Set("m_quantity", entry.Quantity);
+        if (!problem.empty())
+            return false;
+        spells.emplace_back(std::move(spell));
+    }
+    PropertyFiller(deckBehavior, problem).Set(DeckSpellListProperty, std::move(spells));
+    return problem.empty();
+}
+
 PropertyObjectPtr ItemObjectBuilder::Build(TypeCatalogPtr const& catalog, CoreObjectTypeTable const& types, ItemTemplateRecord const& itemTemplate, CharacterItem const& item,
     std::string& problem)
 {

@@ -49,7 +49,9 @@ EquipResult GameSession::EquipItem(uint64 itemGuid, std::string_view slotName)
     std::shared_ptr<PlayerLevelSet const> const levels = sPlayerLevelMgr.GetLevels();
     MagicSchool const* const school = levels ? levels->FindSchool(stats.GetSchoolId()) : nullptr;
     EquipWizard const wizard(school ? school->Name : std::string(), stats.GetLevel());
-    EquipChange const change = _equipment->Equip(*_backpack, GetBackpackCapacity(), *slots, *templates, wizard, itemGuid, slotName);
+    PlayerBackpack nextBackpack = *_backpack;
+    PlayerEquipment nextEquipment = *_equipment;
+    EquipChange const change = nextEquipment.Equip(nextBackpack, GetBackpackCapacity(), *slots, *templates, wizard, itemGuid, slotName);
     if (change.Result != EquipResult::Equipped || !change.Worn)
     {
         LOG_WARN(EquipmentLog, "Session {} refused wizard {}'s request to equip item {} in slot {}, since {}", GetSessionId(), _worldGuid, itemGuid, Ambrose::ForLog(slotName),
@@ -57,6 +59,19 @@ EquipResult GameSession::EquipItem(uint64 itemGuid, std::string_view slotName)
         RefuseEquip(itemGuid, slotName);
         return change.Result;
     }
+    EquippedDeckRestore selected = DeckStateRestorer::RestoreEquipped(nextEquipment, *templates, _deckRows);
+    if (!selected.Valid)
+    {
+        LOG_WARN(EquipmentLog, "Session {} refused wizard {}'s request to equip item {} in slot {}, since its new equipped deck state is invalid",
+            GetSessionId(), _worldGuid, itemGuid, Ambrose::ForLog(slotName));
+        RefuseEquip(itemGuid, slotName);
+        return EquipResult::InvalidDeckState;
+    }
+    if (selected.Deck && _equippedDeck && selected.Deck->ItemGuid == _equippedDeck->ItemGuid)
+        selected.Deck = _equippedDeck;
+    *_backpack = std::move(nextBackpack);
+    *_equipment = std::move(nextEquipment);
+    _equippedDeck = std::move(selected.Deck);
     CharacterEquippedItem const& worn = *change.Worn;
     SaveEquip(worn.Item, worn.Slot, change.Returned);
     if (change.Returned)
@@ -82,7 +97,9 @@ UnequipResult GameSession::UnequipItem(uint64 itemGuid)
 {
     if (!_backpack || !_equipment || !_player)
         return UnequipResult::NotInWorld;
-    UnequipChange const change = _equipment->Unequip(*_backpack, GetBackpackCapacity(), itemGuid);
+    PlayerBackpack nextBackpack = *_backpack;
+    PlayerEquipment nextEquipment = *_equipment;
+    UnequipChange const change = nextEquipment.Unequip(nextBackpack, GetBackpackCapacity(), itemGuid);
     if (change.Result != UnequipResult::Unequipped || !change.TakenOff || !change.Returned)
     {
         LOG_WARN(EquipmentLog, "Session {} refused wizard {}'s request to unequip item {}, since {}", GetSessionId(), _worldGuid, itemGuid, PlayerEquipment::ResultName(change.Result));
@@ -96,6 +113,10 @@ UnequipResult GameSession::UnequipItem(uint64 itemGuid)
         }
         return change.Result;
     }
+    *_backpack = std::move(nextBackpack);
+    *_equipment = std::move(nextEquipment);
+    if (_equippedDeck && _equippedDeck->ItemGuid == itemGuid)
+        _equippedDeck.reset();
     SaveUnequip(*change.Returned);
     SendUnequipped(itemGuid);
     SendItemAdded(*change.Returned);

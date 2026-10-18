@@ -6,6 +6,7 @@
 #ifndef AMBROSE_CHARACTERREPOSITORY_H
 #define AMBROSE_CHARACTERREPOSITORY_H
 
+#include "CharacterDeckSpell.h"
 #include "CharacterItem.h"
 #include "CharacterSpell.h"
 #include "CharacterStats.h"
@@ -43,6 +44,12 @@ struct CharacterSpellsLoad
 {
     CharacterOpResult Result = CharacterOpResult::DatabaseError;
     std::vector<CharacterSpell> Spells;
+};
+
+struct CharacterDeckSpellsLoad
+{
+    CharacterOpResult Result = CharacterOpResult::DatabaseError;
+    std::vector<CharacterDeckSpell> Spells;
 };
 
 struct CharacterInventoryLoad
@@ -102,6 +109,7 @@ public:
     static CharacterOpResult SavePosition(uint64 guid, float x, float y, float z, float orientation, uint64 revision);
     static CharacterSpellsLoad LoadSpells(uint64 guid);
     static CharacterOpResult SaveSpell(uint64 guid, CharacterSpell const& spell);
+    static CharacterDeckSpellsLoad LoadDeckSpells(uint64 guid);
     static CharacterInventoryLoad LoadInventory(uint64 guid);
     static CharacterOpResult AddItem(uint64 guid, CharacterItem const& item);
     static CharacterOpResult TrashItem(uint64 guid, uint64 itemGuid);
@@ -124,6 +132,9 @@ public:
     static Statement PrepareLoadSpells(uint64 guid);
     static Statement PrepareSaveSpell(uint64 guid, CharacterSpell const& spell);
     static std::vector<CharacterSpell> ReadSpells(PreparedResultSet& result);
+    static Statement PrepareLoadDeckSpells(uint64 guid);
+    static Statement PrepareSaveDeckSpell(uint64 guid, CharacterDeckSpell const& spell);
+    static std::vector<CharacterDeckSpell> ReadDeckSpells(PreparedResultSet& result);
     static Statement PrepareLoadInventory(uint64 guid);
     static CreateTransaction PrepareAddItem(uint64 guid, CharacterItem const& item);
     static Statement PrepareTrashItem(uint64 guid, uint64 itemGuid);

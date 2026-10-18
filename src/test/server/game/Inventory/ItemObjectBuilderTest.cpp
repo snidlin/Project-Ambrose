@@ -230,3 +230,35 @@ TEST(ItemObjectBuilderTest, UnrelatedBehaviorCannotReceiveTheDeckSpellList)
     EXPECT_NE(problem.find("not a deck behavior"), std::string::npos);
     EXPECT_EQ(behavior->Get("m_spellList"), nullptr);
 }
+
+TEST(ItemObjectBuilderTest, TypedDeckSpellListSurvivesCompactTransmitEncoding)
+{
+    TypeCatalogPtr const catalog = LoadCatalog();
+    ASSERT_TRUE(catalog);
+    PropertyObjectPtr const behavior = PropertyObject::Create(catalog, "class ClientDeckBehavior");
+    ASSERT_TRUE(behavior);
+    std::optional<PlayerDeck> const deck = PlayerDeck::FromStored({ { 0xF08E1234u, 4 }, { 103007158u, 1 } }, 64);
+    ASSERT_TRUE(deck);
+    std::string problem;
+    ASSERT_TRUE(ItemObjectBuilder::FillDeckSpells(*behavior, *deck, problem)) << problem;
+
+    EncodeResult const encoded = ObjectSerializer::Encode(behavior.get());
+    ASSERT_TRUE(encoded.Ok()) << encoded.Detail;
+    DecodeResult const decoded = ObjectSerializer::Decode(catalog, encoded.Bytes);
+    ASSERT_TRUE(decoded.Ok()) << decoded.Detail;
+    ASSERT_TRUE(decoded.Object);
+    PropertyValue const* const value = decoded.Object->Get("m_spellList");
+    ASSERT_NE(value, nullptr);
+    PropertyValue::List const* const list = value->GetList();
+    ASSERT_NE(list, nullptr);
+    ASSERT_EQ(list->size(), 2u);
+    PropertyObject const* const first = list->at(0).AsObject();
+    PropertyObject const* const second = list->at(1).AsObject();
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(second, nullptr);
+    EXPECT_EQ(*first->Get("m_templateID")->GetIf<uint32>(), 0xF08E1234u);
+    EXPECT_EQ(*first->Get("m_enchantment")->GetIf<uint32>(), 0u);
+    EXPECT_EQ(*first->Get("m_quantity")->GetIf<uint32>(), 4u);
+    EXPECT_EQ(*second->Get("m_templateID")->GetIf<uint32>(), 103007158u);
+    EXPECT_EQ(*second->Get("m_quantity")->GetIf<uint32>(), 1u);
+}

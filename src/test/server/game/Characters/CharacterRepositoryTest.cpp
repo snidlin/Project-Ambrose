@@ -16,6 +16,7 @@
 #include <gtest/gtest.h>
 
 #include <limits>
+#include <optional>
 #include <random>
 #include <string>
 #include <vector>

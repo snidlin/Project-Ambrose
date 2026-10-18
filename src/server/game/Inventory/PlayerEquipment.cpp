@@ -150,6 +150,8 @@ std::string_view PlayerEquipment::ResultName(EquipResult result) noexcept
             return "the wizard does not meet the item's equip requirements";
         case EquipResult::BackpackFull:
             return "its backpack has no room for the item the slot gives back";
+        case EquipResult::InvalidDeckState:
+            return "the resulting equipped deck has invalid stored cards or item templates";
         default:
             return "it is not in the world";
     }

@@ -29,7 +29,8 @@ enum class EquipResult : uint8
     SlotRequirementsNotMet,
     RequirementsNotMet,
     BackpackFull,
-    NotInWorld
+    NotInWorld,
+    InvalidDeckState
 };
 
 enum class UnequipResult : uint8

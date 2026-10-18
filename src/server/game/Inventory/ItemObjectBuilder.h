@@ -9,6 +9,7 @@
 #include "CharacterItem.h"
 #include "CoreObjectSerializer.h"
 #include "ItemTemplateStore.h"
+#include "PlayerDeck.h"
 
 #include <optional>
 #include <string>
@@ -26,10 +27,14 @@ public:
     static constexpr std::string_view PublicItemListProperty = "m_publicItemList";
     static constexpr std::string_view SlotInfoClass = "class EquippedSlotInfo";
     static constexpr std::string_view ItemInfoClass = "class WizardEquippedItemInfo";
+    static constexpr std::string_view DeckBehaviorClass = "class DeckBehavior";
+    static constexpr std::string_view SpellDataClass = "class SpellData";
+    static constexpr std::string_view DeckSpellListProperty = "m_spellList";
     static constexpr std::string_view SerializedInfoField = "SerializedInfo";
 
     ItemObjectBuilder() = delete;
 
+    static bool FillDeckSpells(PropertyObject& deckBehavior, PlayerDeck const& deck, std::string& problem);
     static PropertyObjectPtr Build(TypeCatalogPtr const& catalog, CoreObjectTypeTable const& types, ItemTemplateRecord const& itemTemplate, CharacterItem const& item,
         std::string& problem);
     static bool FillBackpack(PropertyObject& player, CoreObjectTypeTable const& types, ItemTemplateStore const& templates, std::vector<CharacterItem> const& items,

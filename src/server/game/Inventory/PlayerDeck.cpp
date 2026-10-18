@@ -6,6 +6,7 @@
 #include "PlayerDeck.h"
 
 #include <algorithm>
+#include <utility>
 
 uint32 PlayerDeck::Count(uint32 spellId) const noexcept
 {
@@ -56,4 +57,21 @@ DeckEditResult PlayerDeck::Remove(uint32 spellId)
         _spells.erase(entry);
     --_totalCards;
     return DeckEditResult::Removed;
+}
+
+std::optional<PlayerDeck> PlayerDeck::FromStored(std::vector<DeckSpell> spells, uint32 maxCards)
+{
+    if (maxCards == 0)
+        return std::nullopt;
+    PlayerDeck result;
+    for (DeckSpell const& spell : spells)
+    {
+        if (spell.SpellId == 0 || spell.Quantity == 0 || spell.Quantity > maxCards || result._totalCards > maxCards - spell.Quantity)
+            return std::nullopt;
+        if (result.Count(spell.SpellId) != 0)
+            return std::nullopt;
+        result._totalCards += spell.Quantity;
+    }
+    result._spells = std::move(spells);
+    return result;
 }

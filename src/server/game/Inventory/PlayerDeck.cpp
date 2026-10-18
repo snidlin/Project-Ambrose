@@ -1,6 +1,6 @@
 /*
  * Project Ambrose by Imjustchico
- * Applies authoritative deck copy and size limits before changing a wizard's spell quantities, leaving the deck unchanged when an edit is refused.
+ * Enforces selected deck size and copy limits without mutating rejected edits.
  */
 
 #include "PlayerDeck.h"
@@ -13,17 +13,32 @@ uint32 PlayerDeck::Count(uint32 spellId) const noexcept
     return entry == _spells.end() ? 0 : entry->Quantity;
 }
 
-DeckEditResult PlayerDeck::Add(uint32 spellId, DeckLimits limits)
+DeckEditResult PlayerDeck::Add(uint32 spellId, DeckCopyCategory category, DeckLimits limits)
 {
     if (spellId == 0)
         return DeckEditResult::InvalidSpell;
-    if (limits.MaxCards == 0 || limits.MaxCopiesForSpell == 0)
+
+    uint32 maxCopies = 0;
+    switch (category)
+    {
+        case DeckCopyCategory::Generic:
+            maxCopies = limits.MaxGenericCopies;
+            break;
+        case DeckCopyCategory::School:
+            maxCopies = limits.MaxSchoolCopies;
+            break;
+        default:
+            return DeckEditResult::InvalidLimits;
+    }
+    if (limits.MaxCards == 0 || maxCopies == 0)
         return DeckEditResult::InvalidLimits;
+
     auto const entry = std::find_if(_spells.begin(), _spells.end(), [spellId](DeckSpell const& spell) { return spell.SpellId == spellId; });
-    if (entry != _spells.end() && entry->Quantity >= limits.MaxCopiesForSpell)
+    if (entry != _spells.end() && entry->Quantity >= maxCopies)
         return DeckEditResult::CopyLimit;
     if (_totalCards >= limits.MaxCards)
         return DeckEditResult::DeckFull;
+
     if (entry == _spells.end())
         _spells.push_back({ spellId, 1 });
     else

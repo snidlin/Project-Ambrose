@@ -106,6 +106,59 @@ namespace
         return bytes;
     }
 
+    bool ReadDeck(PropertyObject const& object, std::string_view file, std::optional<DeckTemplateSettings>& deck, std::string& error)
+    {
+        PropertyValue const* const value = object.Get("m_behaviors");
+        PropertyValue::List const* const behaviors = value ? value->GetList() : nullptr;
+        if (!behaviors)
+            return true;
+        for (PropertyValue const& entry : *behaviors)
+        {
+            PropertyObject const* const behavior = entry.AsObject();
+            if (!behavior || !behavior->IsA("class DeckBehaviorTemplate"))
+                continue;
+            if (deck)
+            {
+                error = fmt::format("{} contains multiple DeckBehaviorTemplate behaviors", file);
+                return false;
+            }
+            DeckTemplateSettings settings;
+            std::optional<std::string> const defaultDeck = TextOf(*behavior, "m_defaultDeck");
+            std::optional<std::string> const school = TextOf(*behavior, "m_primarySchoolName");
+            if (!defaultDeck || !school)
+            {
+                error = fmt::format("{} has a DeckBehaviorTemplate with a missing or invalid default deck or primary school", file);
+                return false;
+            }
+            settings.DefaultDeck = *defaultDeck;
+            settings.PrimarySchool = *school;
+            auto const readInteger = [&](std::string_view field, int32& destination)
+            {
+                std::optional<int64> const number = IntegerOf(*behavior, field);
+                if (!number || !std::in_range<int32>(*number))
+                {
+                    error = fmt::format("{} has an invalid DeckBehaviorTemplate.{}", file, field);
+                    return false;
+                }
+                destination = static_cast<int32>(*number);
+                return true;
+            };
+            if (!readInteger("m_genericMaxRank", settings.GenericMaxRank) || !readInteger("m_schoolMaxRank", settings.SchoolMaxRank)
+                || !readInteger("m_genericMaxInstances", settings.GenericMaxInstances) || !readInteger("m_schoolMaxInstances", settings.SchoolMaxInstances)
+                || !readInteger("m_maxSpells", settings.MaxSpells) || !readInteger("m_maxTreasureCards", settings.MaxTreasureCards))
+                return false;
+            std::optional<double> const archmastery = RealOf(*behavior, "m_maxArchmasteryPoints");
+            if (!archmastery)
+            {
+                error = fmt::format("{} has an invalid DeckBehaviorTemplate.m_maxArchmasteryPoints", file);
+                return false;
+            }
+            settings.MaxArchmasteryPoints = static_cast<float>(*archmastery);
+            deck = std::move(settings);
+        }
+        return true;
+    }
+
     bool CountIssues(PropertyObject const& object, std::string_view file, std::vector<DecodeIssue> const& issues, std::size_t& unknownBehaviors, std::string& error)
     {
         std::string const behaviors = fmt::format("{}.m_behaviors[", object.GetClass().Name);
@@ -164,6 +217,8 @@ std::optional<ItemTemplateRecord> ItemTemplateRecord::Read(PropertyObject const&
     record.EquipRequirements = RequirementsOf(item->GetEquipRequirements());
     record.PurchaseRequirements = RequirementsOf(item->GetPurchaseRequirements());
     record.EquipEffects = PartsOf(item->GetEquipEffects());
+    if (!ReadDeck(object, record.File, record.Deck, error))
+        return std::nullopt;
     return record;
 }
 
@@ -176,6 +231,8 @@ std::size_t ItemTemplateRecord::GetMemoryUsage() const noexcept
     for (std::optional<ItemRequirementList> const* list : { &EquipRequirements, &PurchaseRequirements })
         if (*list)
             bytes += PartMemory((*list)->Requirements);
+    if (Deck)
+        bytes += Deck->DefaultDeck.capacity() + Deck->PrimarySchool.capacity();
     return bytes + PartMemory(EquipEffects);
 }
 

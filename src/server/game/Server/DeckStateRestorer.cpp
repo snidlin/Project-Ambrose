@@ -4,6 +4,8 @@
  */
 
 #include "DeckStateRestorer.h"
+#include "ItemTemplateStore.h"
+#include "PlayerEquipment.h"
 
 #include <algorithm>
 #include <utility>
@@ -51,4 +53,27 @@ std::optional<RestoredDeckState> DeckStateRestorer::Restore(uint64 deckItemGuid,
         return std::nullopt;
     state.Cards = *deck;
     return state;
+}
+
+EquippedDeckRestore DeckStateRestorer::RestoreEquipped(PlayerEquipment const& equipment, ItemTemplateStore const& templates,
+    std::vector<CharacterDeckSpell> const& stored)
+{
+    EquippedDeckRestore result;
+    for (CharacterEquippedItem const& worn : equipment.GetItems())
+    {
+        if (worn.Item.Guid == 0)
+            return { false, std::nullopt };
+        ItemTemplateRecord const* const item = templates.Find(worn.Item.TemplateId);
+        if (!item)
+            return { false, std::nullopt };
+        if (!item->Deck)
+            continue;
+        if (result.Deck || item->Deck->MaxSpells <= 0)
+            return { false, std::nullopt };
+        std::optional<RestoredDeckState> restored = Restore(worn.Item.Guid, static_cast<uint32>(item->Deck->MaxSpells), stored);
+        if (!restored)
+            return { false, std::nullopt };
+        result.Deck = std::move(restored);
+    }
+    return result;
 }

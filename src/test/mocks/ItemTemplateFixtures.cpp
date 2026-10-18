@@ -19,6 +19,18 @@ namespace
         AddTemplateClasses(classes);
         AddSpellClasses(classes);
         AddItemClasses(classes, withUnknown);
+        Json deck = Json::object();
+        deck["m_behaviorName"] = Property("std::string", "m_behaviorName", 0);
+        deck["m_defaultDeck"] = Property("std::string", "m_defaultDeck", 1);
+        deck["m_primarySchoolName"] = Property("std::string", "m_primarySchoolName", 2);
+        deck["m_genericMaxRank"] = Property("int", "m_genericMaxRank", 3);
+        deck["m_schoolMaxRank"] = Property("int", "m_schoolMaxRank", 4);
+        deck["m_genericMaxInstances"] = Property("int", "m_genericMaxInstances", 5);
+        deck["m_schoolMaxInstances"] = Property("int", "m_schoolMaxInstances", 6);
+        deck["m_maxSpells"] = Property("int", "m_maxSpells", 7);
+        deck["m_maxTreasureCards"] = Property("int", "m_maxTreasureCards", 8);
+        deck["m_maxArchmasteryPoints"] = Property("float", "m_maxArchmasteryPoints", 9);
+        AddClass(classes, "class DeckBehaviorTemplate", Json::array({ "BehaviorTemplate", "PropertyClass" }), std::move(deck));
         if (withUnknown)
         {
             Json shop = Json::object();

@@ -46,6 +46,19 @@ struct ItemRequirementList
     std::vector<ItemTemplatePart> Requirements;
 };
 
+struct DeckTemplateSettings
+{
+    std::string DefaultDeck;
+    std::string PrimarySchool;
+    int32 GenericMaxRank = 0;
+    int32 SchoolMaxRank = 0;
+    int32 GenericMaxInstances = 0;
+    int32 SchoolMaxInstances = 0;
+    int32 MaxSpells = 0;
+    int32 MaxTreasureCards = 0;
+    float MaxArchmasteryPoints = 0.0f;
+};
+
 struct ItemTemplateRecord
 {
     static constexpr std::string_view ItemClass = "class WizItemTemplate";
@@ -67,6 +80,7 @@ struct ItemTemplateRecord
     std::optional<ItemRequirementList> EquipRequirements;
     std::optional<ItemRequirementList> PurchaseRequirements;
     std::vector<ItemTemplatePart> EquipEffects;
+    std::optional<DeckTemplateSettings> Deck;
     std::size_t UnknownBehaviors = 0;
 
     static bool IsItem(PropertyObject const& object) noexcept;

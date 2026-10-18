@@ -7,12 +7,14 @@
 #define AMBROSE_GAMESESSION_H
 
 #include "AsyncCallbackProcessor.h"
+#include "CharacterDeckSpell.h"
 #include "CharacterItem.h"
 #include "CharacterQuests.h"
 #include "CharacterSpell.h"
 #include "CharacterStats.h"
 #include "CharacterSummary.h"
 #include "CinematicResults.h"
+#include "DeckStateRestorer.h"
 #include "ChatMgr.h"
 #include "GameEffectHolder.h"
 #include "GameMessages.h"
@@ -334,10 +336,13 @@ private:
     void LoadInventory(LoginKeyClaim const& claim, CharacterSummary character, std::optional<CharacterStats> stored, std::vector<CharacterSpell> spells);
     void LoadEquipment(LoginKeyClaim const& claim, CharacterSummary character, std::optional<CharacterStats> stored, std::vector<CharacterSpell> spells,
         std::vector<CharacterItem> items);
-    void LoadQuests(LoginKeyClaim const& claim, CharacterSummary character, std::optional<CharacterStats> stored, std::vector<CharacterSpell> spells,
+    void LoadDeckSpells(LoginKeyClaim const& claim, CharacterSummary character, std::optional<CharacterStats> stored, std::vector<CharacterSpell> spells,
         std::vector<CharacterItem> items, std::vector<CharacterEquippedItem> equipped);
+    void LoadQuests(LoginKeyClaim const& claim, CharacterSummary character, std::optional<CharacterStats> stored, std::vector<CharacterSpell> spells,
+        std::vector<CharacterItem> items, std::vector<CharacterEquippedItem> equipped, std::vector<CharacterDeckSpell> deckRows);
     void EnterWorld(LoginKeyClaim const& claim, CharacterSummary const& character, std::optional<CharacterStats> const& stored, std::vector<CharacterSpell> const& spells,
-        std::vector<CharacterItem> const& items, std::vector<CharacterEquippedItem> const& equipped, CharacterQuests const& quests);
+        std::vector<CharacterItem> const& items, std::vector<CharacterEquippedItem> const& equipped, std::vector<CharacterDeckSpell> const& deckRows,
+        CharacterQuests const& quests);
     void SaveStats();
     void SaveStatsIfDirty();
     void SaveProgress();
@@ -461,6 +466,8 @@ private:
     std::optional<PlayerSpellbook> _spellbook;
     std::optional<PlayerBackpack> _backpack;
     std::optional<PlayerEquipment> _equipment;
+    std::vector<CharacterDeckSpell> _deckRows;
+    std::optional<RestoredDeckState> _equippedDeck;
     std::vector<PublicEquipmentChange> _equipmentChanges;
     PropertyObjectPtr _playerObject;
     uint64 _questRevision = 0;

@@ -9,6 +9,7 @@
 #include "Types.h"
 
 #include <cstddef>
+#include <optional>
 #include <vector>
 
 struct DeckSpell
@@ -48,6 +49,7 @@ class PlayerDeck
 public:
     DeckEditResult Add(uint32 spellId, DeckCopyCategory category, DeckLimits limits);
     DeckEditResult Remove(uint32 spellId);
+    static std::optional<PlayerDeck> FromStored(std::vector<DeckSpell> spells, uint32 maxCards);
 
     std::vector<DeckSpell> const& GetSpells() const noexcept { return _spells; }
     std::size_t TotalCards() const noexcept { return _totalCards; }

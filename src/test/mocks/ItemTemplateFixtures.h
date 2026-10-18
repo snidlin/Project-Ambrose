@@ -31,7 +31,7 @@ public:
     ItemTemplateFixtures();
 
     static std::string ReaderDump();
-    void Write(std::filesystem::path const& gameData, float hatCost = 125.0f, Robe robe = Robe::Plain);
+    void Write(std::filesystem::path const& gameData, float hatCost = 125.0f, Robe robe = Robe::Plain, bool withDeck = false);
 
 private:
     PropertyObjectPtr Create(std::string const& type);

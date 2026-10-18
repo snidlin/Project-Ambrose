@@ -77,7 +77,7 @@ void CharacterDatabaseConnection::DoPrepareStatements()
     PrepareStatement(CHAR_REP_CHARACTER_SPELL, "CHAR_REP_CHARACTER_SPELL", "INSERT INTO `character_spell` (`guid`, `spell_id`, `known`, `learned`, `revision`) VALUES (?, ?, ?, ?, ?) "
         "ON DUPLICATE KEY UPDATE `known` = IF(VALUES(`revision`) > `revision`, VALUES(`known`), `known`), `learned` = IF(VALUES(`revision`) > `revision`, VALUES(`learned`), `learned`), "
         "`revision` = GREATEST(`revision`, VALUES(`revision`))", ConnectionFlags::Both);
-    PrepareStatement(CHAR_SEL_CHARACTER_DECK_SPELLS, "CHAR_SEL_CHARACTER_DECK_SPELLS", "SELECT c.`guid` IS NOT NULL, d.`deck_item_guid`, d.`spell_id`, d.`quantity`, d.`sort_order`, d.`revision` "
+    PrepareStatement(CHAR_SEL_CHARACTER_DECK_SPELLS, "CHAR_SEL_CHARACTER_DECK_SPELLS", "SELECT c.`guid` IS NOT NULL, d.`deck_item_guid` IS NOT NULL, d.`deck_item_guid`, d.`spell_id`, d.`quantity`, d.`sort_order`, d.`revision` "
         "FROM `characters` c LEFT JOIN `item_instance` i ON i.`owner` = c.`guid` "
         "LEFT JOIN `character_deck_spell` d ON d.`deck_item_guid` = i.`guid` AND d.`owner_guid` = c.`guid` "
         "WHERE c.`guid` = ? ORDER BY d.`deck_item_guid`, d.`sort_order`, d.`spell_id`", ConnectionFlags::Both);

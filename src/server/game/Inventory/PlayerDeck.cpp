@@ -6,6 +6,7 @@
 #include "PlayerDeck.h"
 
 #include <algorithm>
+#include <unordered_set>
 #include <utility>
 
 uint32 PlayerDeck::Count(uint32 spellId) const noexcept
@@ -64,11 +65,12 @@ std::optional<PlayerDeck> PlayerDeck::FromStored(std::vector<DeckSpell> spells, 
     if (maxCards == 0)
         return std::nullopt;
     PlayerDeck result;
+    std::unordered_set<uint32> seen;
     for (DeckSpell const& spell : spells)
     {
         if (spell.SpellId == 0 || spell.Quantity == 0 || spell.Quantity > maxCards || result._totalCards > maxCards - spell.Quantity)
             return std::nullopt;
-        if (result.Count(spell.SpellId) != 0)
+        if (!seen.insert(spell.SpellId).second)
             return std::nullopt;
         result._totalCards += spell.Quantity;
     }

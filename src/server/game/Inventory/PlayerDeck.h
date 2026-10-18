@@ -1,6 +1,6 @@
 /*
  * Project Ambrose by Imjustchico
- * Stores a wizard's ordinary deck spell quantities and refuses additions or removals that exceed the equipped deck's supplied limits or refer to absent spells.
+ * Holds a wizard's ordinary spell quantities with caller-supplied deck limits.
  */
 
 #ifndef AMBROSE_PLAYERDECK_H
@@ -22,7 +22,14 @@ struct DeckSpell
 struct DeckLimits
 {
     uint32 MaxCards = 0;
-    uint32 MaxCopiesForSpell = 0;
+    uint32 MaxGenericCopies = 0;
+    uint32 MaxSchoolCopies = 0;
+};
+
+enum class DeckCopyCategory : uint8
+{
+    Generic,
+    School
 };
 
 enum class DeckEditResult : uint8
@@ -39,7 +46,7 @@ enum class DeckEditResult : uint8
 class PlayerDeck
 {
 public:
-    DeckEditResult Add(uint32 spellId, DeckLimits limits);
+    DeckEditResult Add(uint32 spellId, DeckCopyCategory category, DeckLimits limits);
     DeckEditResult Remove(uint32 spellId);
 
     std::vector<DeckSpell> const& GetSpells() const noexcept { return _spells; }

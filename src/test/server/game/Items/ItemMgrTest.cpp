@@ -189,3 +189,30 @@ TEST_F(ItemMgrTest, AReloadThatMeetsAnEquipRequirementOfAClassTheDumpLacksKeepsT
     EXPECT_TRUE(Holds(broken.Errors, fmt::format("class hash {}", StringHash::KiStringHash(ItemTemplateFixtures::UnknownRequirement))));
     EXPECT_FLOAT_EQ(_items.GetItems()->Find(ItemTemplateFixtures::HatId)->BaseCost, 125.0f);
 }
+
+TEST_F(ItemMgrTest, KnownDeckBehaviorExposesSchoolAndCapacityRules)
+{
+    _fixtures.Write(GameData(), 125.0f, ItemTemplateFixtures::Robe::Plain, true);
+    std::vector<std::string> errors;
+    ASSERT_TRUE(_items.Load(errors)) << (errors.empty() ? std::string() : errors.front());
+
+    std::shared_ptr<ItemTemplateStore const> const items = _items.GetItems();
+    ASSERT_NE(items, nullptr);
+    ItemTemplateRecord const* const hat = items->Find(ItemTemplateFixtures::HatId);
+    ASSERT_NE(hat, nullptr);
+    ASSERT_TRUE(hat->Deck.has_value());
+    EXPECT_EQ(hat->Deck->DefaultDeck, "");
+    EXPECT_EQ(hat->Deck->PrimarySchool, "Fire");
+    EXPECT_EQ(hat->Deck->GenericMaxRank, -1);
+    EXPECT_EQ(hat->Deck->SchoolMaxRank, -1);
+    EXPECT_EQ(hat->Deck->GenericMaxInstances, 4);
+    EXPECT_EQ(hat->Deck->SchoolMaxInstances, 6);
+    EXPECT_EQ(hat->Deck->MaxSpells, 64);
+    EXPECT_EQ(hat->Deck->MaxTreasureCards, 36);
+    EXPECT_FLOAT_EQ(hat->Deck->MaxArchmasteryPoints, 5.0f);
+
+    ItemTemplateRecord const* const robe = items->Find(ItemTemplateFixtures::RobeId);
+    ASSERT_NE(robe, nullptr);
+    EXPECT_FALSE(robe->Deck.has_value());
+    EXPECT_EQ(robe->UnknownBehaviors, 1u);
+}

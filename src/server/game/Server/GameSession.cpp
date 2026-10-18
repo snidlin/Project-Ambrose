@@ -649,12 +649,36 @@ void GameSession::LoadEquipment(LoginKeyClaim const& claim, CharacterSummary cha
             RefuseEntry(claim, fmt::format("wizard {}'s equipment cannot be read from the characters database", character.Guid));
             return;
         }
-        LoadQuests(claim, character, stored, spells, items, CharacterRepository::ReadEquipment(*result));
+        LoadDeckSpells(claim, character, stored, spells, items, CharacterRepository::ReadEquipment(*result));
+    }));
+}
+
+void GameSession::LoadDeckSpells(LoginKeyClaim const& claim, CharacterSummary character, std::optional<CharacterStats> stored, std::vector<CharacterSpell> spells,
+    std::vector<CharacterItem> items, std::vector<CharacterEquippedItem> equipped)
+{
+    CharacterRepository::Statement statement = CharacterDatabase.IsOpen() ? CharacterRepository::PrepareLoadDeckSpells(character.Guid) : nullptr;
+    if (!statement)
+    {
+        RefuseEntry(claim, "the characters database is not open");
+        return;
+    }
+    _queryCallbacks.AddCallback(CharacterDatabase.AsyncQuery(std::move(statement), MakeCompletionHandler()).WithPreparedCallback(
+        [this, claim, character = std::move(character), stored = std::move(stored), spells = std::move(spells), items = std::move(items),
+            equipped = std::move(equipped)](PreparedQueryResult result)
+    {
+        if (!IsOpen() || IsKicked())
+            return;
+        if (!result)
+        {
+            RefuseEntry(claim, fmt::format("wizard {}'s deck spells cannot be read from the characters database", character.Guid));
+            return;
+        }
+        LoadQuests(claim, character, stored, spells, items, equipped, CharacterRepository::ReadDeckSpells(*result));
     }));
 }
 
 void GameSession::LoadQuests(LoginKeyClaim const& claim, CharacterSummary character, std::optional<CharacterStats> stored, std::vector<CharacterSpell> spells,
-    std::vector<CharacterItem> items, std::vector<CharacterEquippedItem> equipped)
+    std::vector<CharacterItem> items, std::vector<CharacterEquippedItem> equipped, std::vector<CharacterDeckSpell> deckRows)
 {
     CharacterQuestRepository::LoadHolder holder = CharacterDatabase.IsOpen() ? CharacterQuestRepository::PrepareLoad(character.Guid) : nullptr;
     if (!holder)
@@ -663,8 +687,8 @@ void GameSession::LoadQuests(LoginKeyClaim const& claim, CharacterSummary charac
         return;
     }
     _holderCallbacks.AddCallback(CharacterDatabase.DelayQueryHolder(std::move(holder), MakeCompletionHandler()).AfterComplete(
-        [this, claim, character = std::move(character), stored = std::move(stored), spells = std::move(spells), items = std::move(items), equipped = std::move(equipped)](
-            SQLQueryHolderBase const& done)
+        [this, claim, character = std::move(character), stored = std::move(stored), spells = std::move(spells), items = std::move(items),
+            equipped = std::move(equipped), deckRows = std::move(deckRows)](SQLQueryHolderBase const& done)
     {
         if (!IsOpen() || IsKicked())
             return;
@@ -675,14 +699,15 @@ void GameSession::LoadQuests(LoginKeyClaim const& claim, CharacterSummary charac
             return;
         }
         std::shared_ptr<GameSession> const self = SharedSelf();
-        if (!QueueInbound([self, claim, character, stored, spells, items, equipped, quests = std::move(*quests)]
-            { self->EnterWorld(claim, character, stored, spells, items, equipped, quests); }))
+        if (!QueueInbound([self, claim, character, stored, spells, items, equipped, deckRows, quests = std::move(*quests)]
+            { self->EnterWorld(claim, character, stored, spells, items, equipped, deckRows, quests); }))
             RefuseEntry(claim, "its queue of work is full");
     }));
 }
 
 void GameSession::EnterWorld(LoginKeyClaim const& claim, CharacterSummary const& character, std::optional<CharacterStats> const& stored, std::vector<CharacterSpell> const& spells,
-    std::vector<CharacterItem> const& items, std::vector<CharacterEquippedItem> const& equipped, CharacterQuests const& quests)
+    std::vector<CharacterItem> const& items, std::vector<CharacterEquippedItem> const& equipped, std::vector<CharacterDeckSpell> const& deckRows,
+    CharacterQuests const& quests)
 {
     if (!_world)
     {
@@ -744,6 +769,28 @@ void GameSession::EnterWorld(LoginKeyClaim const& claim, CharacterSummary const&
         if (previous->IsOpen())
             previous->Kick("replaced by a newer attach for the same character");
         previous.reset();
+    }
+
+    PlayerEquipment equipment = resumedEquipment ? std::move(*resumedEquipment) : PlayerEquipment::FromStored(equipped);
+    std::shared_ptr<ItemTemplateStore const> const itemTemplates = sItemMgr.GetItems();
+    std::optional<RestoredDeckState> equippedDeck;
+    if (!resumed)
+    {
+        if (!itemTemplates && equipment.Size() > 0)
+        {
+            RefuseEntry(claim, fmt::format("wizard {}'s equipped deck cannot be checked without item templates", character.Guid));
+            return;
+        }
+        if (itemTemplates)
+        {
+            EquippedDeckRestore restored = DeckStateRestorer::RestoreEquipped(equipment, *itemTemplates, deckRows);
+            if (!restored.Valid)
+            {
+                RefuseEntry(claim, fmt::format("wizard {}'s equipped deck has missing or invalid saved data", character.Guid));
+                return;
+            }
+            equippedDeck = std::move(restored.Deck);
+        }
     }
 
     std::string problem;
@@ -812,7 +859,6 @@ void GameSession::EnterWorld(LoginKeyClaim const& claim, CharacterSummary const&
         if (!ItemObjectBuilder::SetItemsAllowed(*player, capacity, allowedProblem))
             LOG_WARN("server.gamesession", "Session {} cannot tell wizard {}'s client its backpack holds {} item(s), since {}", GetSessionId(), character.Guid, capacity, allowedProblem);
     }
-    std::shared_ptr<ItemTemplateStore const> const itemTemplates = sItemMgr.GetItems();
     if (player && types && backpack.Size() > 0)
     {
         std::vector<uint64> unheld;
@@ -826,7 +872,6 @@ void GameSession::EnterWorld(LoginKeyClaim const& claim, CharacterSummary const&
             LOG_WARN("server.gamesession", "Session {} left {} item(s) wizard {} holds out of its backpack, since the items this server holds do not name their templates: {}",
                 GetSessionId(), unheld.size(), character.Guid, fmt::join(unheld, ", "));
     }
-    PlayerEquipment equipment = resumedEquipment ? std::move(*resumedEquipment) : PlayerEquipment::FromStored(equipped);
     if (player && types && itemTemplates && equipment.Size() > 0)
     {
         std::vector<uint64> unheld;
@@ -920,6 +965,11 @@ void GameSession::EnterWorld(LoginKeyClaim const& claim, CharacterSummary const&
     _spellbook = std::move(spellbook);
     _backpack = std::move(backpack);
     _equipment = std::move(equipment);
+    if (!resumed)
+    {
+        _deckRows = deckRows;
+        _equippedDeck = std::move(equippedDeck);
+    }
     _equipmentChanges.clear();
     _playerObject = std::move(player);
     _itemsAllowed = itemsAllowed;
@@ -2613,6 +2663,8 @@ void GameSession::LeaveWorld()
     _spellbook.reset();
     _backpack.reset();
     _equipment.reset();
+    _deckRows.clear();
+    _equippedDeck.reset();
     _equipmentChanges.clear();
     _playerObject.reset();
     SaveQuestLogIfDirty();
@@ -2649,6 +2701,8 @@ void GameSession::TransferWorldStateTo(GameSession& replacement)
     replacement._characterRevision = _characterRevision;
     replacement._statsRevision = _statsRevision;
     replacement._questRevision = _questRevision;
+    replacement._deckRows = std::move(_deckRows);
+    replacement._equippedDeck = std::move(_equippedDeck);
     replacement._arrived = _arrived;
     replacement._effects = std::move(_effects);
     replacement._zoneTokens = std::move(_zoneTokens);
@@ -2668,6 +2722,8 @@ void GameSession::TransferWorldStateTo(GameSession& replacement)
     _spellbook.reset();
     _backpack.reset();
     _equipment.reset();
+    _deckRows.clear();
+    _equippedDeck.reset();
     _equipmentChanges.clear();
     _playerObject.reset();
     _worldGuid = 0;

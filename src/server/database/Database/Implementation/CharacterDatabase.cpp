@@ -77,6 +77,16 @@ void CharacterDatabaseConnection::DoPrepareStatements()
     PrepareStatement(CHAR_REP_CHARACTER_SPELL, "CHAR_REP_CHARACTER_SPELL", "INSERT INTO `character_spell` (`guid`, `spell_id`, `known`, `learned`, `revision`) VALUES (?, ?, ?, ?, ?) "
         "ON DUPLICATE KEY UPDATE `known` = IF(VALUES(`revision`) > `revision`, VALUES(`known`), `known`), `learned` = IF(VALUES(`revision`) > `revision`, VALUES(`learned`), `learned`), "
         "`revision` = GREATEST(`revision`, VALUES(`revision`))", ConnectionFlags::Both);
+    PrepareStatement(CHAR_SEL_CHARACTER_DECK_SPELLS, "CHAR_SEL_CHARACTER_DECK_SPELLS", "SELECT c.`guid` IS NOT NULL, d.`deck_item_guid`, d.`spell_id`, d.`quantity`, d.`sort_order`, d.`revision` "
+        "FROM `characters` c LEFT JOIN `item_instance` i ON i.`owner` = c.`guid` "
+        "LEFT JOIN `character_deck_spell` d ON d.`deck_item_guid` = i.`guid` AND d.`owner_guid` = c.`guid` "
+        "WHERE c.`guid` = ? ORDER BY d.`deck_item_guid`, d.`sort_order`, d.`spell_id`", ConnectionFlags::Both);
+    PrepareStatement(CHAR_REP_CHARACTER_DECK_SPELL, "CHAR_REP_CHARACTER_DECK_SPELL", "INSERT INTO `character_deck_spell` "
+        "(`owner_guid`, `deck_item_guid`, `spell_id`, `quantity`, `sort_order`, `revision`) "
+        "SELECT i.`owner`, i.`guid`, ?, ?, ?, ? FROM `item_instance` i WHERE i.`guid` = ? AND i.`owner` = ? "
+        "ON DUPLICATE KEY UPDATE `quantity` = IF(VALUES(`revision`) > `revision`, VALUES(`quantity`), `quantity`), "
+        "`sort_order` = IF(VALUES(`revision`) > `revision`, VALUES(`sort_order`), `sort_order`), "
+        "`revision` = GREATEST(`revision`, VALUES(`revision`))", ConnectionFlags::Both);
     PrepareStatement(CHAR_SEL_CHARACTER_INVENTORY, "CHAR_SEL_CHARACTER_INVENTORY", "SELECT i.`guid` IS NOT NULL, i.`guid`, i.`template`, i.`quantity`, i.`primary_color`, i.`secondary_color`, "
         "i.`pattern`, i.`locked`, i.`flags`, i.`created`, v.`slot` FROM `characters` c LEFT JOIN `character_inventory` v ON v.`guid` = c.`guid` "
         "LEFT JOIN `item_instance` i ON i.`guid` = v.`item` AND i.`owner` = c.`guid` WHERE c.`guid` = ? ORDER BY v.`slot`, v.`item`", ConnectionFlags::Both);

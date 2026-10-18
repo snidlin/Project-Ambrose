@@ -18,6 +18,7 @@ namespace
     {
         ItemTemplateRecord item;
         item.TemplateId = id;
+        item.Adjectives = { "Deck" };
         item.Deck.emplace();
         item.Deck->MaxSpells = maxCards;
         return item;
@@ -142,4 +143,84 @@ TEST(DeckStateRestorerTest, MalformedSelectedDeckAndInvalidTemplateCapacityAreRe
     ASSERT_TRUE(templates);
     EXPECT_FALSE(DeckStateRestorer::RestoreEquipped(WornDecks({ { 7001, 101 } }), *templates, { { 7001, 301, 15, 0, 1 } }).Valid);
     EXPECT_FALSE(DeckStateRestorer::RestoreEquipped(WornDecks({ { 7001, 102 } }), *templates, {}).Valid);
+}
+
+TEST(DeckStateRestorerTest, SwappingTwoIdenticalTemplatesUsesEachPhysicalDeckAndReequippingRestoresOriginalCards)
+{
+    auto const templates = ItemTemplateStore::Build({ DeckTemplate(101, 14) });
+    ASSERT_TRUE(templates);
+    EquipSlot slot;
+    slot.Name = "Deck";
+    slot.AdjectivesAnd = { "Deck" };
+    EquipmentSlots const slots = EquipmentSlots::FromSlots({ slot });
+    EquipWizard const wizard("Fire", 20);
+    CharacterItem first;
+    first.Guid = 7001;
+    first.TemplateId = 101;
+    CharacterItem second;
+    second.Guid = 7002;
+    second.TemplateId = 101;
+    PlayerBackpack backpack = PlayerBackpack::FromStored({ second });
+    PlayerEquipment equipment = PlayerEquipment::FromStored({ { first, "Deck" } });
+    std::vector<CharacterDeckSpell> const rows{ { 7001, 301, 3, 0, 4 }, { 7002, 301, 1, 0, 9 }, { 7002, 302, 2, 1, 7 } };
+
+    auto selected = DeckStateRestorer::RestoreEquipped(equipment, *templates, rows);
+    ASSERT_TRUE(selected.Valid);
+    ASSERT_TRUE(selected.Deck);
+    EXPECT_EQ(selected.Deck->ItemGuid, first.Guid);
+    EXPECT_EQ(selected.Deck->Cards.Count(301), 3u);
+    EXPECT_EQ(selected.Deck->RevisionOf(301), 4u);
+
+    EquipChange const swap = equipment.Equip(backpack, 2, slots, *templates, wizard, second.Guid, "Deck");
+    ASSERT_EQ(swap.Result, EquipResult::Equipped);
+    ASSERT_TRUE(swap.Returned);
+    EXPECT_EQ(swap.Returned->Guid, first.Guid);
+    selected = DeckStateRestorer::RestoreEquipped(equipment, *templates, rows);
+    ASSERT_TRUE(selected.Valid);
+    ASSERT_TRUE(selected.Deck);
+    EXPECT_EQ(selected.Deck->ItemGuid, second.Guid);
+    EXPECT_EQ(selected.Deck->Cards.Count(301), 1u);
+    EXPECT_EQ(selected.Deck->Cards.Count(302), 2u);
+    EXPECT_EQ(selected.Deck->RevisionOf(301), 9u);
+
+    EXPECT_EQ(equipment.Unequip(backpack, 2, second.Guid).Result, UnequipResult::Unequipped);
+    selected = DeckStateRestorer::RestoreEquipped(equipment, *templates, rows);
+    EXPECT_TRUE(selected.Valid);
+    EXPECT_FALSE(selected.Deck);
+    EXPECT_EQ(equipment.Equip(backpack, 2, slots, *templates, wizard, first.Guid, "Deck").Result, EquipResult::Equipped);
+    selected = DeckStateRestorer::RestoreEquipped(equipment, *templates, rows);
+    ASSERT_TRUE(selected.Valid);
+    ASSERT_TRUE(selected.Deck);
+    EXPECT_EQ(selected.Deck->ItemGuid, first.Guid);
+    EXPECT_EQ(selected.Deck->Cards.Count(301), 3u);
+    EXPECT_EQ(selected.Deck->Cards.Count(302), 0u);
+    EXPECT_EQ(selected.Deck->RevisionOf(301), 4u);
+}
+
+TEST(DeckStateRestorerTest, InvalidSavedReplacementDeckCanBeRejectedBeforeMovingAnyRealItems)
+{
+    auto const templates = ItemTemplateStore::Build({ DeckTemplate(101, 4) });
+    ASSERT_TRUE(templates);
+    EquipSlot slot;
+    slot.Name = "Deck";
+    slot.AdjectivesAnd = { "Deck" };
+    EquipmentSlots const slots = EquipmentSlots::FromSlots({ slot });
+    EquipWizard const wizard("Ice", 20);
+    CharacterItem first;
+    first.Guid = 7001;
+    first.TemplateId = 101;
+    CharacterItem second;
+    second.Guid = 7002;
+    second.TemplateId = 101;
+    PlayerBackpack const backpack = PlayerBackpack::FromStored({ second });
+    PlayerEquipment const equipment = PlayerEquipment::FromStored({ { first, "Deck" } });
+
+    PlayerBackpack candidateBackpack = backpack;
+    PlayerEquipment candidateEquipment = equipment;
+    EquipChange const candidate = candidateEquipment.Equip(candidateBackpack, 2, slots, *templates, wizard, second.Guid, "Deck");
+    ASSERT_EQ(candidate.Result, EquipResult::Equipped);
+    EXPECT_FALSE(DeckStateRestorer::RestoreEquipped(candidateEquipment, *templates, { { 7002, 301, 5, 0, 1 } }).Valid);
+    EXPECT_NE(backpack.Find(second.Guid), nullptr);
+    EXPECT_EQ(equipment.Find(first.Guid)->Item.Guid, first.Guid);
+    EXPECT_EQ(equipment.Find(second.Guid), nullptr);
 }

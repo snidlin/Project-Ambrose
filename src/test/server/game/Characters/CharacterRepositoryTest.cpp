@@ -626,3 +626,47 @@ TEST_F(CharacterRepositoryDatabaseTest, AQuestLogCountedToTwoOfFiveReloadsWithTh
     EXPECT_EQ(CharacterQuestRepository::Save(999, log.ToStored(5)), CharacterOpResult::DatabaseError) << "a quest log needs its wizard";
     EXPECT_EQ(CharacterQuestRepository::Load(601).Quests->Revision, 3u);
 }
+
+TEST_F(CharacterRepositoryDatabaseTest, DeckCardsStayWithTheirOwnItemAndIgnoreLateWrites)
+{
+    std::mt19937 random(20261018);
+    ASSERT_EQ(CharacterRepository::Create(MakeCharacter(random, 331, 51, 1800000331)), CharacterOpResult::Ok);
+    ASSERT_EQ(CharacterRepository::Create(MakeCharacter(random, 332, 52, 1800000332)), CharacterOpResult::Ok);
+    ASSERT_EQ(CharacterRepository::LoadDeckSpells(331).Result, CharacterOpResult::Ok);
+    EXPECT_TRUE(CharacterRepository::LoadDeckSpells(331).Spells.empty());
+    EXPECT_EQ(CharacterRepository::LoadDeckSpells(999).Result, CharacterOpResult::NotFound);
+
+    for (CharacterItem const item : { CharacterItem{ 7001, 1652259 }, CharacterItem{ 7002, 1652259 } })
+        ASSERT_EQ(CharacterRepository::AddItem(331, item), CharacterOpResult::Ok);
+    ASSERT_EQ(CharacterRepository::AddItem(332, CharacterItem{ 7003, 1652259 }), CharacterOpResult::Ok);
+
+    auto const save = [](uint64 owner, CharacterDeckSpell const& row) -> std::optional<uint64>
+    {
+        CharacterRepository::Statement const statement = CharacterRepository::PrepareSaveDeckSpell(owner, row);
+        if (!statement)
+            return std::nullopt;
+        return CharacterDatabase.DirectExecuteCounted(*statement);
+    };
+    uint32 constexpr spellId = 0xF08E1234u;
+    CharacterDeckSpell const first{ 7001, spellId, 2, 0, 1 };
+    CharacterDeckSpell const second{ 7002, spellId, 4, 1, 1 };
+    ASSERT_TRUE(save(331, first));
+    ASSERT_TRUE(save(331, second));
+    EXPECT_EQ(save(332, { 7001, spellId, 6, 0, 2 }), 0u);
+    EXPECT_EQ(save(331, { 9999, spellId, 6, 0, 2 }), 0u);
+    EXPECT_EQ(CharacterRepository::LoadDeckSpells(331).Spells, (std::vector<CharacterDeckSpell>{ first, second }));
+    EXPECT_TRUE(CharacterRepository::LoadDeckSpells(332).Spells.empty());
+
+    CharacterDeckSpell const removed{ 7001, spellId, 0, 0, 3 };
+    ASSERT_TRUE(save(331, removed));
+    ASSERT_TRUE(save(331, { 7001, spellId, 7, 0, 2 }));
+    EXPECT_EQ(CharacterRepository::LoadDeckSpells(331).Spells, (std::vector<CharacterDeckSpell>{ removed, second }));
+
+    EXPECT_FALSE(CharacterRepository::PrepareSaveDeckSpell(0, first));
+    EXPECT_FALSE(CharacterRepository::PrepareSaveDeckSpell(331, { 0, spellId, 1, 0, 1 }));
+    EXPECT_FALSE(CharacterRepository::PrepareSaveDeckSpell(331, { 7001, 0, 1, 0, 1 }));
+    EXPECT_FALSE(CharacterRepository::PrepareSaveDeckSpell(331, { 7001, spellId, 1, 0, 0 }));
+
+    EXPECT_EQ(CharacterRepository::TrashItem(331, 7001), CharacterOpResult::Ok);
+    EXPECT_EQ(CharacterRepository::LoadDeckSpells(331).Spells, (std::vector<CharacterDeckSpell>{ second }));
+}

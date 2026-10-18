@@ -41,7 +41,9 @@ namespace
         AddClass(classes, "class DeckBehavior", Json::array({ "BehaviorInstance", "PropertyClass" }), {
             { "m_behaviorTemplateNameID", Property("unsigned int", "m_behaviorTemplateNameID", 0, Local) },
             { "m_spellList", Property("class SharedPointer<class SpellData>", "m_spellList", 1, Wire, "List") } });
-        AddClass(classes, "class ClientDeckBehavior", Json::array({ "DeckBehavior", "BehaviorInstance", "PropertyClass" }), {});
+        AddClass(classes, "class ClientDeckBehavior", Json::array({ "DeckBehavior", "BehaviorInstance", "PropertyClass" }), {
+            { "m_behaviorTemplateNameID", Property("unsigned int", "m_behaviorTemplateNameID", 0, Local) },
+            { "m_spellList", Property("class SharedPointer<class SpellData>", "m_spellList", 1, Wire, "List") } });
         AddClass(classes, "class EquippedItemInfo", Json::array({ "PropertyClass" }), {
             { "m_itemID", Property("unsigned int", "m_itemID", 0, Wire) } });
         AddClass(classes, "class WizardEquippedItemInfo", Json::array({ "EquippedItemInfo", "PropertyClass" }), {

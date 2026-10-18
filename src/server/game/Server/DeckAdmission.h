@@ -7,6 +7,7 @@
 #define AMBROSE_DECKADMISSION_H
 
 #include "PlayerDeck.h"
+#include "SpellMgr.h"
 #include "Types.h"
 
 #include <string>
@@ -14,7 +15,6 @@
 class ItemTemplateStore;
 class PlayerEquipment;
 class PlayerSpellbook;
-class SpellStore;
 
 enum class DeckPrerequisiteResult : uint8
 {

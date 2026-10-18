@@ -79,9 +79,26 @@ PropertyObjectPtr ItemTemplateFixtures::Item(std::string const& name, std::strin
     return item;
 }
 
-void ItemTemplateFixtures::Write(std::filesystem::path const& gameData, float hatCost, Robe robe)
+void ItemTemplateFixtures::Write(std::filesystem::path const& gameData, float hatCost, Robe robe, bool withDeck)
 {
     PropertyObjectPtr hat = Item("WC-Hat-Fire-01", "Items_00028316", "Fire", hatCost, 1, 0, 0);
+    if (withDeck)
+    {
+        PropertyObjectPtr deck = Create("class DeckBehaviorTemplate");
+        EXPECT_EQ(deck->Set("m_behaviorName", std::string("BasicDeckBehavior")), PropertySetResult::Ok);
+        EXPECT_EQ(deck->Set("m_defaultDeck", std::string("")), PropertySetResult::Ok);
+        EXPECT_EQ(deck->Set("m_primarySchoolName", std::string("Fire")), PropertySetResult::Ok);
+        EXPECT_EQ(deck->Set("m_genericMaxRank", int32{ -1 }), PropertySetResult::Ok);
+        EXPECT_EQ(deck->Set("m_schoolMaxRank", int32{ -1 }), PropertySetResult::Ok);
+        EXPECT_EQ(deck->Set("m_genericMaxInstances", int32{ 4 }), PropertySetResult::Ok);
+        EXPECT_EQ(deck->Set("m_schoolMaxInstances", int32{ 6 }), PropertySetResult::Ok);
+        EXPECT_EQ(deck->Set("m_maxSpells", int32{ 64 }), PropertySetResult::Ok);
+        EXPECT_EQ(deck->Set("m_maxTreasureCards", int32{ 36 }), PropertySetResult::Ok);
+        EXPECT_EQ(deck->Set("m_maxArchmasteryPoints", float{ 5.0f }), PropertySetResult::Ok);
+        PropertyValue::List behaviors;
+        behaviors.emplace_back(std::move(deck));
+        EXPECT_EQ(hat->Set("m_behaviors", std::move(behaviors)), PropertySetResult::Ok);
+    }
     PropertyObjectPtr robeItem = Item("WC-Robe-Ice-02", "Items_00028400", "Ice", 300.0f, 5, 1, 42);
     PropertyObjectPtr shop = Create(UnknownBehavior);
     EXPECT_EQ(shop->Set("m_behaviorName", std::string("ShopBehavior")), PropertySetResult::Ok);

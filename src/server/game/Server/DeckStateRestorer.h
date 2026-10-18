@@ -12,6 +12,9 @@
 #include <optional>
 #include <vector>
 
+class ItemTemplateStore;
+class PlayerEquipment;
+
 struct RestoredDeckState
 {
     uint64 ItemGuid = 0;
@@ -21,10 +24,18 @@ struct RestoredDeckState
     uint64 RevisionOf(uint32 spellId) const noexcept;
 };
 
+struct EquippedDeckRestore
+{
+    bool Valid = true;
+    std::optional<RestoredDeckState> Deck;
+};
+
 class DeckStateRestorer
 {
 public:
     static std::optional<RestoredDeckState> Restore(uint64 deckItemGuid, uint32 maxCards, std::vector<CharacterDeckSpell> const& stored);
+    static EquippedDeckRestore RestoreEquipped(PlayerEquipment const& equipment, ItemTemplateStore const& templates,
+        std::vector<CharacterDeckSpell> const& stored);
 };
 
 #endif

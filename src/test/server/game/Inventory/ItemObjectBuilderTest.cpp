@@ -34,6 +34,14 @@ namespace
         AddClass(classes, "class ClientWizEquipmentBehavior", Json::array({ "BehaviorInstance", "PropertyClass" }), {
             { "m_behaviorTemplateNameID", Property("unsigned int", "m_behaviorTemplateNameID", 0, Local) },
             { "m_itemList", Property("class SharedPointer<class CoreObject>", "m_itemList", 1, Wire, "List") } });
+        AddClass(classes, "class SpellData", Json::array({ "PropertyClass" }), {
+            { "m_templateID", Property("unsigned int", "m_templateID", 0, Wire) },
+            { "m_enchantment", Property("unsigned int", "m_enchantment", 1, Wire) },
+            { "m_quantity", Property("unsigned int", "m_quantity", 2, Wire) } });
+        AddClass(classes, "class DeckBehavior", Json::array({ "BehaviorInstance", "PropertyClass" }), {
+            { "m_behaviorTemplateNameID", Property("unsigned int", "m_behaviorTemplateNameID", 0, Local) },
+            { "m_spellList", Property("class SharedPointer<class SpellData>", "m_spellList", 1, Wire, "List") } });
+        AddClass(classes, "class ClientDeckBehavior", Json::array({ "DeckBehavior", "BehaviorInstance", "PropertyClass" }), {});
         AddClass(classes, "class EquippedItemInfo", Json::array({ "PropertyClass" }), {
             { "m_itemID", Property("unsigned int", "m_itemID", 0, Wire) } });
         AddClass(classes, "class WizardEquippedItemInfo", Json::array({ "EquippedItemInfo", "PropertyClass" }), {
@@ -163,4 +171,62 @@ TEST(ItemObjectBuilderTest, AWornItemsPublicEntryCarriesItsOwnColorsAndPatternWi
     EXPECT_EQ(*decoded.Object->Get("m_baseColor")->GetIf<uint32>(), 7u);
     EXPECT_EQ(*decoded.Object->Get("m_trimColor")->GetIf<uint32>(), 3u);
     EXPECT_EQ(*decoded.Object->Get("m_pattern")->GetIf<uint32>(), 2u) << "the lock bit is the wearer's own and never reaches the wizards around it";
+}
+
+TEST(ItemObjectBuilderTest, RegularDeckSpellDataCarriesUnsignedTemplateIdZeroEnchantmentAndQuantity)
+{
+    TypeCatalogPtr const catalog = LoadCatalog();
+    ASSERT_TRUE(catalog);
+    PropertyObjectPtr const behavior = PropertyObject::Create(catalog, "class ClientDeckBehavior");
+    ASSERT_TRUE(behavior);
+    std::optional<PlayerDeck> const deck = PlayerDeck::FromStored({ { 0xF08E1234u, 3 }, { 103007158u, 2 } }, 64);
+    ASSERT_TRUE(deck);
+    std::string problem;
+    ASSERT_TRUE(ItemObjectBuilder::FillDeckSpells(*behavior, *deck, problem)) << problem;
+
+    PropertyValue::List const* const spellList = behavior->Get(ItemObjectBuilder::DeckSpellListProperty)->GetList();
+    ASSERT_NE(spellList, nullptr);
+    ASSERT_EQ(spellList->size(), 2u);
+    PropertyObject const* const first = spellList->at(0).AsObject();
+    PropertyObject const* const second = spellList->at(1).AsObject();
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(second, nullptr);
+    EXPECT_EQ(first->GetClass().Name, "class SpellData");
+    EXPECT_EQ(*first->Get("m_templateID")->GetIf<uint32>(), 0xF08E1234u);
+    EXPECT_EQ(*first->Get("m_enchantment")->GetIf<uint32>(), 0u);
+    EXPECT_EQ(*first->Get("m_quantity")->GetIf<uint32>(), 3u);
+    EXPECT_EQ(*second->Get("m_templateID")->GetIf<uint32>(), 103007158u);
+    EXPECT_EQ(*second->Get("m_enchantment")->GetIf<uint32>(), 0u);
+    EXPECT_EQ(*second->Get("m_quantity")->GetIf<uint32>(), 2u);
+}
+
+TEST(ItemObjectBuilderTest, ADeckClearedOfOrdinaryCardsEmitsAnEmptySpellList)
+{
+    TypeCatalogPtr const catalog = LoadCatalog();
+    ASSERT_TRUE(catalog);
+    PropertyObjectPtr const behavior = PropertyObject::Create(catalog, "class DeckBehavior");
+    ASSERT_TRUE(behavior);
+    std::string problem;
+    std::optional<PlayerDeck> const withSpell = PlayerDeck::FromStored({ { 123, 1 } }, 14);
+    std::optional<PlayerDeck> const empty = PlayerDeck::FromStored({}, 14);
+    ASSERT_TRUE(withSpell);
+    ASSERT_TRUE(empty);
+    ASSERT_TRUE(ItemObjectBuilder::FillDeckSpells(*behavior, *withSpell, problem)) << problem;
+    EXPECT_EQ(behavior->Get("m_spellList")->GetList()->size(), 1u);
+    ASSERT_TRUE(ItemObjectBuilder::FillDeckSpells(*behavior, *empty, problem)) << problem;
+    EXPECT_TRUE(behavior->Get("m_spellList")->GetList()->empty());
+}
+
+TEST(ItemObjectBuilderTest, UnrelatedBehaviorCannotReceiveTheDeckSpellList)
+{
+    TypeCatalogPtr const catalog = LoadCatalog();
+    ASSERT_TRUE(catalog);
+    PropertyObjectPtr const behavior = PropertyObject::Create(catalog, "class ClientWizEquipmentBehavior");
+    ASSERT_TRUE(behavior);
+    std::optional<PlayerDeck> const deck = PlayerDeck::FromStored({ { 123, 1 } }, 14);
+    ASSERT_TRUE(deck);
+    std::string problem;
+    EXPECT_FALSE(ItemObjectBuilder::FillDeckSpells(*behavior, *deck, problem));
+    EXPECT_NE(problem.find("not a deck behavior"), std::string::npos);
+    EXPECT_EQ(behavior->Get("m_spellList"), nullptr);
 }

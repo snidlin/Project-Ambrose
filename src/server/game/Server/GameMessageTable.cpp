@@ -186,6 +186,8 @@ namespace
             Sends<EndDuel>();
             Sends<Aggro>();
             Sends<AddSpellToBook>();
+            Sends<AddSpellToDeck>();
+            Sends<RemoveSpellFromDeck>();
             Sends<RemoveSpellFromBook>();
             Sends<InventoryBehaviorAddItem>();
             Sends<DynaModBehaviorUpdateMods>();

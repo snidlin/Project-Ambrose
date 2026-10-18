@@ -607,6 +607,64 @@ std::string_view CharacterRepository::GetResultName(CharacterOpResult result) no
     return "unknown";
 }
 
+CharacterDeckSpellsLoad CharacterRepository::LoadDeckSpells(uint64 guid)
+{
+    Statement const statement = PrepareLoadDeckSpells(guid);
+    if (!statement)
+        return {};
+    PreparedQueryResult result;
+    if (!CharacterDatabase.TryQuery(*statement, result))
+        return {};
+    if (!result)
+        return { CharacterOpResult::NotFound, {} };
+    return { CharacterOpResult::Ok, ReadDeckSpells(*result) };
+}
+
+CharacterRepository::Statement CharacterRepository::PrepareLoadDeckSpells(uint64 guid)
+{
+    if (guid == 0)
+        return nullptr;
+    Statement statement = Prepare(CHAR_SEL_CHARACTER_DECK_SPELLS);
+    if (statement)
+        statement->SetData(0, guid);
+    return statement;
+}
+
+CharacterRepository::Statement CharacterRepository::PrepareSaveDeckSpell(uint64 guid, CharacterDeckSpell const& spell)
+{
+    if (guid == 0 || spell.DeckItemGuid == 0 || spell.SpellId == 0 || spell.Revision == 0)
+        return nullptr;
+    Statement statement = Prepare(CHAR_REP_CHARACTER_DECK_SPELL);
+    if (!statement)
+        return statement;
+    statement->SetData(0, spell.SpellId);
+    statement->SetData(1, spell.Quantity);
+    statement->SetData(2, spell.SortOrder);
+    statement->SetData(3, spell.Revision);
+    statement->SetData(4, spell.DeckItemGuid);
+    statement->SetData(5, guid);
+    return statement;
+}
+
+std::vector<CharacterDeckSpell> CharacterRepository::ReadDeckSpells(PreparedResultSet& result)
+{
+    std::vector<CharacterDeckSpell> spells;
+    do
+    {
+        Field const* const row = result.Fetch();
+        if (row[1].Get<uint32>() == 0)
+            continue;
+        CharacterDeckSpell spell;
+        spell.DeckItemGuid = row[2].Get<uint64>();
+        spell.SpellId = row[3].Get<uint32>();
+        spell.Quantity = row[4].Get<uint32>();
+        spell.SortOrder = row[5].Get<uint32>();
+        spell.Revision = row[6].Get<uint64>();
+        spells.push_back(spell);
+    } while (result.NextRow());
+    return spells;
+}
+
 CharacterInventoryLoad CharacterRepository::LoadInventory(uint64 guid)
 {
     Statement const statement = PrepareLoadInventory(guid);

@@ -130,6 +130,8 @@ namespace LoginMessageFixtures
 <_ProtocolInfo><RECORD><ServiceID TYPE="UBYT">12</ServiceID><ProtocolType TYPE="STR">WIZARD</ProtocolType></RECORD></_ProtocolInfo>
 <MSG_AGGRO><RECORD><_MsgOrder TYPE="UBYT" NOXFER="TRUE">4</_MsgOrder><GlobalID TYPE="GID"></GlobalID><LocX TYPE="FLT"></LocX><LocY TYPE="FLT"></LocY><LocZ TYPE="FLT"></LocZ><Yaw TYPE="FLT"></Yaw><SigilGID TYPE="GID"></SigilGID><SigilX TYPE="FLT"></SigilX><SigilY TYPE="FLT"></SigilY><SigilZ TYPE="FLT"></SigilZ><SigilYaw TYPE="FLT"></SigilYaw></RECORD></MSG_AGGRO>
 <MSG_ADDSPELLTOBOOK><RECORD><_MsgOrder TYPE="UBYT" NOXFER="TRUE">10</_MsgOrder><SpellID TYPE="INT"></SpellID></RECORD></MSG_ADDSPELLTOBOOK>
+<MSG_ADDSPELLTODECK><RECORD><_MsgOrder TYPE="UBYT" NOXFER="TRUE">11</_MsgOrder><SpellID TYPE="INT"></SpellID><DeckID TYPE="GID"></DeckID><Success TYPE="UBYT"></Success></RECORD></MSG_ADDSPELLTODECK>
+<MSG_REMOVESPELLFROMDECK><RECORD><_MsgOrder TYPE="UBYT" NOXFER="TRUE">156</_MsgOrder><SpellID TYPE="INT"></SpellID><DeckID TYPE="GID"></DeckID><Success TYPE="UBYT"></Success></RECORD></MSG_REMOVESPELLFROMDECK>
 <MSG_CROWNBALANCE><RECORD><_MsgOrder TYPE="UBYT" NOXFER="TRUE">41</_MsgOrder><Failure TYPE="UBYT">0</Failure><TotalCrowns TYPE="INT">0</TotalCrowns><CharacterID TYPE="GID"></CharacterID><CacheBalanceForCSSegmentation TYPE="UBYT">0</CacheBalanceForCSSegmentation></RECORD></MSG_CROWNBALANCE>
 <MSG_DONESHOPPING><RECORD><_MsgOrder TYPE="UBYT" NOXFER="TRUE">50</_MsgOrder><TransactionID TYPE="GID"></TransactionID></RECORD></MSG_DONESHOPPING>
 <MSG_ELIXIRSTATECHANGE><RECORD><_MsgOrder TYPE="UBYT" NOXFER="TRUE">55</_MsgOrder><parentID TYPE="GID"></parentID><EffectEnabled TYPE="BYT"></EffectEnabled></RECORD></MSG_ELIXIRSTATECHANGE>

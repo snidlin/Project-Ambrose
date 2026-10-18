@@ -109,3 +109,18 @@ TEST(DeckTest, InvalidLimitsAndSpellIdsFailClosed)
     EXPECT_EQ(deck.Add(101, static_cast<DeckCopyCategory>(255), { 5, 2, 2 }), DeckEditResult::InvalidLimits);
     EXPECT_TRUE(deck.GetSpells().empty());
 }
+
+TEST(DeckTest, RebuiltRowsRejectDuplicatesOversizedTotalsAndZeroQuantities)
+{
+    auto const valid = PlayerDeck::FromStored({ { 101, 2 }, { 202, 3 } }, 5);
+    ASSERT_TRUE(valid);
+    EXPECT_EQ(valid->TotalCards(), 5u);
+    EXPECT_EQ(valid->Count(202), 3u);
+    EXPECT_EQ(valid->GetSpells(), (std::vector<DeckSpell>{ { 101, 2 }, { 202, 3 } }));
+
+    EXPECT_FALSE(PlayerDeck::FromStored({ { 101, 2 }, { 101, 1 } }, 5));
+    EXPECT_FALSE(PlayerDeck::FromStored({ { 101, 3 }, { 202, 3 } }, 5));
+    EXPECT_FALSE(PlayerDeck::FromStored({ { 101, 0 } }, 5));
+    EXPECT_FALSE(PlayerDeck::FromStored({ { 0, 1 } }, 5));
+    EXPECT_FALSE(PlayerDeck::FromStored({}, 0));
+}

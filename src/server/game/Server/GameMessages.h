@@ -1247,6 +1247,38 @@ namespace GameMessages
         }
     };
 
+    struct AddSpellToDeck
+    {
+        static constexpr uint8 ServiceId = WizardService;
+        static constexpr std::string_view Tag = "MSG_ADDSPELLTODECK";
+
+        int32 SpellId = 0;
+        uint64 DeckId = 0;
+        uint8 Success = 0;
+
+        static constexpr auto Fields()
+        {
+            return std::tuple{ DmlField("SpellID", &AddSpellToDeck::SpellId), DmlField("DeckID", &AddSpellToDeck::DeckId),
+                DmlField("Success", &AddSpellToDeck::Success) };
+        }
+    };
+
+    struct RemoveSpellFromDeck
+    {
+        static constexpr uint8 ServiceId = WizardService;
+        static constexpr std::string_view Tag = "MSG_REMOVESPELLFROMDECK";
+
+        int32 SpellId = 0;
+        uint64 DeckId = 0;
+        uint8 Success = 0;
+
+        static constexpr auto Fields()
+        {
+            return std::tuple{ DmlField("SpellID", &RemoveSpellFromDeck::SpellId), DmlField("DeckID", &RemoveSpellFromDeck::DeckId),
+                DmlField("Success", &RemoveSpellFromDeck::Success) };
+        }
+    };
+
     struct RemoveSpellFromBook
     {
         static constexpr uint8 ServiceId = WizardService;

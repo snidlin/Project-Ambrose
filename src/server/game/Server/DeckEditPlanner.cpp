@@ -6,6 +6,7 @@
 #include "DeckEditPlanner.h"
 
 #include <limits>
+#include <utility>
 
 DeckEditPlan DeckEditPlanner::Prepare(DeckEditAction action, PlayerDeck const& current, uint64 deckItemGuid, uint32 spellId,
     DeckCopyCategory category, DeckLimits limits, uint32 sortOrder, uint64 previousRevision)
